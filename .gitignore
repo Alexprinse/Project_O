@@ -1,2 +1,24 @@
+# Environment files
 .env
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache and temporary files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation / Reports
 mission_report.docx
