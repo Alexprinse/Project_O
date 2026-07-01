@@ -19,6 +19,18 @@ class ROS2Nav2Controller(BaseRobotController):
             
         self.navigator = BasicNavigator()
         
+        # Set initial pose (TurtleBot3 world default starting pose is x=-2.0, y=-0.5)
+        from geometry_msgs.msg import PoseStamped
+        initial_pose = PoseStamped()
+        initial_pose.header.frame_id = 'map'
+        initial_pose.header.stamp = self.navigator.get_clock().now().to_msg()
+        initial_pose.pose.position.x = -2.0
+        initial_pose.pose.position.y = -0.5
+        initial_pose.pose.position.z = 0.0
+        initial_pose.pose.orientation.z = 0.0
+        initial_pose.pose.orientation.w = 1.0
+        self.navigator.setInitialPose(initial_pose)
+        
         # Wait for Nav2 to be fully active
         logger.info("⏳ Waiting for Nav2 to become active...")
         self.navigator.waitUntilNav2Active(localizer="amcl")

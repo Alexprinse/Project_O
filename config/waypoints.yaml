@@ -1,18 +1,20 @@
 routes:
   warehouse_loop:
     - { name: "start", x: 0.0, y: 0.0, theta: 0.0 }
-    - { name: "rack_a", x: 5.0, y: 0.0, theta: 0.0 }
-    - { name: "rack_b", x: 5.0, y: 5.0, theta: 1.57 }
-    - { name: "loading_dock", x: 0.0, y: 5.0, theta: 3.14 }
+    - { name: "rack_a", x: 1.5, y: 0.0, theta: 0.0 }
+    - { name: "rack_b", x: 1.5, y: 1.5, theta: 1.57 }
+    - { name: "loading_dock", x: 0.0, y: 1.5, theta: 3.14 }
   inspection_route:
     - { name: "start", x: 0.0, y: 0.0, theta: 0.0 }
-    - { name: "machine_1", x: 2.0, y: 2.0, theta: 0.78 }
-    - { name: "machine_2", x: 4.0, y: -2.0, theta: -0.78 }
+    - { name: "machine_1", x: 1.0, y: 1.0, theta: 0.78 }
+    - { name: "machine_2", x: 1.5, y: -1.0, theta: -0.78 }
   perimeter:
-    - { name: "start", x: 0.0, y: 0.0, theta: 0.0 }
-    - { name: "corner_1", x: 10.0, y: 0.0, theta: 0.0 }
-    - { name: "corner_2", x: 10.0, y: 10.0, theta: 1.57 }
-    - { name: "corner_3", x: 0.0, y: 10.0, theta: 3.14 }
+    - { name: "start_bottom", x: -2.40, y: 0.0, theta: -3.14 }
+    - { name: "top" , x: 1.98, y: 0.0, theta: 0.0 }
+    - { name: "right", x: 0.0, y: -1.98, theta: -1.57 }
+    - { name: "bottom", x: -1.98, y: 0.0, theta: -3.14 }
+    - { name: "left", x: 0.0, y: 1.98, theta: 1.57}
+
 
 home:
   x: 0.0

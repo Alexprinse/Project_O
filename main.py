@@ -48,7 +48,8 @@ def main():
         
         # If settings say use_mock is true, override the CLI flag
         use_mock = args.mock_llm or validator.settings.get("llm", {}).get("use_mock", False)
-        llm_parser = MissionParser(use_mock=use_mock)
+        routes = list(validator.waypoints.get("routes", {}).keys())
+        llm_parser = MissionParser(use_mock=use_mock, allowed_routes=routes)
         
         if args.ros:
             logger.info("🔌 Loading ROS 2 Nav2 Controller...")
