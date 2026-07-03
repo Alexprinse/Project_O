@@ -80,20 +80,28 @@ For a fully automated installation of ROS 2 Humble, Nav2, TurtleBot3, and e-Yant
 The script will also create the Python virtual environment with system site packages automatically.
 
 ### Method B: Manual Local Setup
-1. **Create and activate a virtual environment**:
+1. **Build the simulation workspace (`eyrc_ws`)**:
+   If you have ROS 2 Humble installed on your host:
+   ```bash
+   cd eyrc_ws
+   colcon build
+   cd ..
+   ```
+2. **Create and activate a virtual environment**:
    ```bash
    python3 -m venv --system-site-packages .venv
    source .venv/bin/activate
    ```
-2. **Install dependencies**:
+3. **Install dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
-3. **Set your Gemini API Key**:
+4. **Set your Gemini API Key**:
    Create a `.env` file at the root:
    ```env
    GEMINI_API_KEY=your_gemini_api_key_here
    ```
+
 
 ### Method C: Docker Setup
 To run the pipeline inside a portable container:
