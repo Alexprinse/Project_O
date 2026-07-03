@@ -134,19 +134,7 @@ python main.py --prompt "Patrol the warehouse loop once at speed 1.2" --robot tu
 
 Ensure you have executed the automated host setup script (`./setup_simulation.sh`) to install system dependencies and compile the workspace.
 
-#### Option A: Quick Launch (Autospawns the Robot)
-1. **Terminal 1:** Source and launch the simulation world:
-   ```bash
-   source eyrc_ws/install/setup.bash
-   ros2 launch eyantra_warehouse task2b.launch.py
-   ```
-2. **Terminal 2:** Activate the Python virtual environment and run the pipeline:
-   ```bash
-   source .venv/bin/activate
-   python main.py --prompt "Patrol the serpentine path at speed 0.4" --robot ebot --ros
-   ```
-
-#### Option B: Manual Launch (Separate Spawner)
+#### Option A: Manual Launch (Separate Spawner)
 1. **Terminal 1:** Source and launch the warehouse world:
    ```bash
    source eyrc_ws/install/setup.bash
