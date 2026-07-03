@@ -72,10 +72,17 @@ flowchart TD
 
 This repository is designed to be highly portable and run out-of-the-box on the examiner's Linux machine.
 
-### Method A: Local Setup (Recommended)
+### Method A: Automated Host Setup (Examiner Recommended)
+For a fully automated installation of ROS 2 Humble, Nav2, TurtleBot3, and e-Yantra dependencies on Ubuntu 22.04 LTS:
+```bash
+./setup_simulation.sh
+```
+The script will also create the Python virtual environment with system site packages automatically.
+
+### Method B: Manual Local Setup
 1. **Create and activate a virtual environment**:
    ```bash
-   python3 -m venv .venv
+   python3 -m venv --system-site-packages .venv
    source .venv/bin/activate
    ```
 2. **Install dependencies**:
@@ -88,17 +95,24 @@ This repository is designed to be highly portable and run out-of-the-box on the 
    GEMINI_API_KEY=your_gemini_api_key_here
    ```
 
-### Method B: Docker Setup
+### Method C: Docker Setup
 To run the pipeline inside a portable container:
-```bash
-# Build the Docker image
-docker build -t omokai-mission-pipeline .
-
-# Run the pipeline locally (forces mock LLM and mock Robot mode by default)
-docker run -it omokai-mission-pipeline --prompt "Patrol the warehouse twice at speed 1.2" --mock-llm
-```
+1. **Build the Docker image**:
+   ```bash
+   docker build -t omokai-mission-pipeline .
+   ```
+2. **Run in Offline/Mock Mode (No simulator needed)**:
+   ```bash
+   docker run -it --env-file .env omokai-mission-pipeline --prompt "Patrol the warehouse twice at speed 1.2" --mock-llm
+   ```
+3. **Run in ROS Mode (Bridges to Gazebo on the Host)**:
+   *Ensure Gazebo/Nav2 is running on your host first, then execute:*
+   ```bash
+   docker run -it --net=host --ipc=host --env-file .env omokai-mission-pipeline --prompt "Patrol the serpentine path at speed 0.4" --robot ebot --ros
+   ```
 
 ---
+
 
 ## 🚀 Execution & Usage Examples
 
@@ -117,20 +131,38 @@ python main.py --prompt "Patrol the warehouse loop once at speed 1.2" --robot tu
 ```
 
 ### 3. e-Yantra Krishi Cobot (Ignition Gazebo + Direct Control)
-1. Build and source the companion workspace `/home/alex/Documents/eyrc_ws` in your terminal:
+
+Ensure you have executed the automated host setup script (`./setup_simulation.sh`) to install system dependencies and compile the workspace.
+
+#### Option A: Quick Launch (Autospawns the Robot)
+1. **Terminal 1:** Source and launch the simulation world:
    ```bash
-   cd /home/alex/Documents/eyrc_ws
-   colcon build
-   source install/setup.bash
-   ```
-2. Launch the simulation world:
-   ```bash
+   source eyrc_ws/install/setup.bash
    ros2 launch eyantra_warehouse task2b.launch.py
    ```
-3. Run the Omokai pipeline:
+2. **Terminal 2:** Activate the Python virtual environment and run the pipeline:
    ```bash
+   source .venv/bin/activate
    python main.py --prompt "Patrol the serpentine path at speed 0.4" --robot ebot --ros
    ```
+
+#### Option B: Manual Launch (Separate Spawner)
+1. **Terminal 1:** Source and launch the warehouse world:
+   ```bash
+   source eyrc_ws/install/setup.bash
+   ros2 launch eyantra_warehouse task2.launch.py
+   ```
+2. **Terminal 2:** Spawn the ebot model:
+   ```bash
+   source eyrc_ws/install/setup.bash
+   ros2 launch ebot_description spawn_ebot.launch.py
+   ```
+3. **Terminal 3:** Activate the Python virtual environment and run the pipeline:
+   ```bash
+   source .venv/bin/activate
+   python main.py --prompt "Patrol the serpentine path at speed 0.4" --robot ebot --ros
+   ```
+
 
 ---
 

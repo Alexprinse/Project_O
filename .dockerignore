@@ -1,0 +1,7 @@
+.git
+.venv
+.DS_Store
+eyrc_ws/
+__pycache__/
+*.log
+*.pyc

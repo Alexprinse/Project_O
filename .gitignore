@@ -22,3 +22,8 @@ Thumbs.db
 
 # Documentation / Reports
 mission_report.docx
+
+#eyantra files
+eyrc_ws/build/
+eyrc_ws/install/
+eyrc_ws/log/
