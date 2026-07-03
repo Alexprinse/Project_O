@@ -165,19 +165,10 @@ class EbotRobotController(BaseRobotController, Node):
 
                 self.cmd_pub.publish(twist)
             else:
-                # Position reached - perform final heading orientation alignment
-                yaw_err = normalize_angle(theta - self.yaw)
-                if abs(yaw_err) <= self.yaw_tol:
-                    # Fully arrived at coordinate and aligned orientation
-                    self.stop()
-                    goal_reached = True
-                else:
-                    # Rotate to align orientation
-                    w_cmd = self.k_ang * yaw_err
-                    w_cmd = max(-self.max_ang, min(self.max_ang, w_cmd))
-                    twist.linear.x = 0.0
-                    twist.angular.z = w_cmd
-                    self.cmd_pub.publish(twist)
+                # Position reached - stop and mark goal as complete
+                self.stop()
+                goal_reached = True
+
 
         logger.info(f"✅ [EbotRobot] Arrived at '{target_name}'.")
         return True
@@ -188,5 +179,8 @@ class EbotRobotController(BaseRobotController, Node):
             try:
                 twist = Twist()
                 self.cmd_pub.publish(twist)
+                # Give ROS 2 DDS middleware time to transmit the message before the process exits
+                time.sleep(1.0)
             except Exception as e:
                 logger.error(f"Failed to publish stop command: {e}")
+
