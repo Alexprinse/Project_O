@@ -111,14 +111,24 @@ To execute the pipeline natively on your host machine:
         source eyrc_ws/install/setup.bash
         ros2 launch ebot_description spawn_ebot.launch.py
         ```
-*   **For TurtleBot3:**
-    *   **Terminal 1:**
+*   **For TurtleBot3 (AWS Warehouse):**
+    *   **Terminal 1 (Launch Simulator with Map):**
         ```bash
+        # 1. Setup environment and software rendering
+        export LIBGL_ALWAYS_SOFTWARE=1
         export TURTLEBOT3_MODEL=waffle_pi
-        ros2 launch nav2_bringup tb3_simulation_launch.py
+        source /usr/share/gazebo/setup.sh
+        source /opt/ros/humble/setup.bash
+
+        # 2. Launch the AWS warehouse world with the saved static map
+        ros2 launch nav2_bringup tb3_simulation_launch.py \
+          world:=/home/alex/Documents/Omokai_Project/config/worlds/warehouse.world \
+          map:=/home/alex/Documents/Omokai_Project/config/maps/warehouse_map.yaml \
+          slam:=False \
+          headless:=False
         ```
 
-#### 2. Run the Controller Pipeline (Terminal 3)
+#### 2. Run the Controller Pipeline (Terminal 2)
 Activate the virtual environment, export your API key, and launch the pipeline:
 ```bash
 source .venv/bin/activate
@@ -128,34 +138,54 @@ export GEMINI_API_KEY="your_gemini_api_key_here"
 ##### Example Prompts to Try:
 *   **ebot Serpentine Sweep:**
     ```bash
-    python main.py --prompt "Patrol the serpentine path at speed 0.4" --robot ebot --ros
+    python3 main.py --prompt "Patrol the serpentine path at speed 0.4" --robot ebot --ros
     ```
 *   **ebot Central Corridor:**
     ```bash
-    python main.py --prompt "Drive through the central corridor at speed 0.8" --robot ebot --ros
+    python3 main.py --prompt "Drive through the central corridor at speed 0.8" --robot ebot --ros
     ```
-*   **TurtleBot3 Warehouse Loop:**
+*   **TurtleBot3 Delivery Route (with custom safety speed):**
     ```bash
-    python main.py --prompt "Patrol the warehouse loop twice at speed 1.2" --robot turtlebot3 --ros
+    python3 main.py --prompt "patrol the delivery line for once at maximum speed of 2.5m/s" --ros --robot turtlebot3
+    ```
+*   **TurtleBot3 Corridor Patrol (Top & Bottom):**
+    ```bash
+    python3 main.py --prompt "patrol top_side for once" --ros --robot turtlebot3
     ```
 
 ---
 
-### Step 5: Run inside Docker (Bridged to Host Simulator)
-If you want to run the controller pipeline inside a Docker container while bridging to the Gazebo simulation running on your host:
+### Step 5: Run EVERYTHING inside Docker (with X11 Display Forwarding)
 
-1.  **Build the Docker image:**
-    ```bash
-    docker build -t omokai-mission-pipeline .
-    ```
-2.  **Start the simulator and robot on the host** (using step 4.1 above).
-3.  **Run the container with host-network sharing:**
-    ```bash
-    docker run -it --rm --net=host --ipc=host \
-      -e GEMINI_API_KEY="your_gemini_api_key_here" \
-      omokai-mission-pipeline \
-      --prompt "Patrol the serpentine path at speed 0.4" --robot ebot --ros
-    ```
+You can run the entire simulation, navigation stack, and python pipeline completely inside Docker. The 3D simulator window (Gazebo/RViz) will be rendered on your host display using X11 forwarding.
+
+#### 1. Grant Docker access to your X Server (Run on your Host)
+Before launching the containers, authorize local docker containers to connect to your host GUI window server:
+```bash
+xhost +local:docker
+```
+
+#### 2. Build and Start the Simulator (Terminal 1)
+Build the unified container and start the Gazebo AWS warehouse world + Nav2 navigation server:
+```bash
+docker compose up simulation
+```
+*(The simulation will launch instantly, load the custom map, and show up on your host screen).*
+
+#### 3. Run Commands Interactively (Terminal 2)
+In a separate terminal, start the interactive controller shell:
+```bash
+# Export your API key on the host
+export GEMINI_API_KEY="your_gemini_api_key_here"
+
+# Start the controller container and open a bash shell
+docker compose run controller
+```
+
+Once inside the container shell, you can issue natural-language prompts to command the robot:
+```bash
+python3 main.py --prompt "patrol the delivery line for once at maximum speed of 2.5m/s" --ros --robot turtlebot3
+```
 
 ---
 
@@ -199,4 +229,6 @@ This project builds on and references the following open-source resources:
 * **Pydantic v2** ([pydantic/pydantic](https://github.com/pydantic/pydantic)) - *License: MIT*. Used to define and validate the structural JSON mission schema.
 * **Google GenAI SDK** ([google/generative-ai-python](https://github.com/google/generative-ai-python)) - *License: Apache-2.0*. Used to interface with the Gemini API.
 * **ROS 2 Nav2 Simple Commander** ([ros-navigation/navigation2](https://github.com/ros-navigation/navigation2)) - *License: Apache-2.0*. Used as reference for the programmatic interface (`BasicNavigator`) to Nav2.
+* **AWS RoboMaker Small Warehouse World** ([aws-robotics/aws-robomaker-small-warehouse-world](https://github.com/aws-robotics/aws-robomaker-small-warehouse-world)) - *License: Apache-2.0*. Used as the 3D Gazebo warehouse world layout.
+* **SLAM Toolbox** ([SteveMacenski/slam_toolbox](https://github.com/SteveMacenski/slam_toolbox)) - *License: LGPL-2.1*. Used for 2D mapping and real-time loop-closure localization.
 * **eYRC Krishi Cobot Serpentine Navigation** - *License: Custom/Educational*. The proportional control and LiDAR obstacle avoidance algorithms in `robot/ebot_controller.py` are adapted from my past work in the e-Yantra Robotics Competition 2025-26.

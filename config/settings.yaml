@@ -1,5 +1,5 @@
 safety:
-  max_speed: 1.5      # maximum allowed speed in meters per second
+  max_speed: 2.5     # maximum allowed speed in meters per second
   min_speed: 0.1      # minimum allowed speed in meters per second
   max_loops: 10       # maximum allowed loop count to prevent infinite runs
   default_speed: 0.5  # default speed if LLM doesn't specify one

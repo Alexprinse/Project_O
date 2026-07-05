@@ -31,9 +31,28 @@ class ROS2Nav2Controller(BaseRobotController):
         initial_pose.pose.orientation.w = 1.0
         self.navigator.setInitialPose(initial_pose)
         
+        # Wait up to 5 seconds for DDS service discovery to find either localizer
+        localizer_service = None
+        logger.info("🔍 Auto-detecting active localization service...")
+        for _ in range(10):
+            services = [s[0] for s in self.navigator.get_service_names_and_types()]
+            if "/slam_toolbox/get_state" in services:
+                localizer_service = "planner_server" # Use planner_server to bypass slam_toolbox lifecycle checks
+                logger.info("ℹ️ Detected SLAM Toolbox. Waiting on planner_server lifecycle activation.")
+                break
+            elif "/amcl/get_state" in services:
+                localizer_service = "amcl"
+                logger.info("ℹ️ Detected AMCL as active localizer.")
+                break
+            time.sleep(0.5)
+
+        if localizer_service is None:
+            logger.warning("⚠️ No active localizer service discovered yet. Defaulting to 'planner_server'.")
+            localizer_service = "planner_server"
+
         # Wait for Nav2 to be fully active
         logger.info("⏳ Waiting for Nav2 to become active...")
-        self.navigator.waitUntilNav2Active(localizer="amcl")
+        self.navigator.waitUntilNav2Active(localizer=localizer_service)
         logger.info("✅ Nav2 is active and ready.")
 
     def navigate_to(self, target_name: str, x: float, y: float, theta: float, speed: float) -> bool:

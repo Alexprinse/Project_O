@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # 1. Gazebo + Nav2 Simulation Service
+  simulation:
+    build: .
+    image: omokai-robotic-stack:latest
+    network_mode: host
+    ipc: host
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - LIBGL_ALWAYS_SOFTWARE=1
+      - TURTLEBOT3_MODEL=waffle_pi
+      - GAZEBO_MODEL_PATH=/opt/ros/humble/share/:/root/.gazebo/models
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /tmp/.virgl_test:/tmp/.virgl_test:rw
+    command: >
+      bash -c "source /opt/ros/humble/setup.bash && 
+               ros2 launch nav2_bringup tb3_simulation_launch.py \
+               world:=/app/config/worlds/warehouse.world \
+               map:=/app/config/maps/warehouse_map.yaml \
+               slam:=False \
+               headless:=False"
+
+  # 2. Interactive Mission Command Pipeline Service
+  controller:
+    build: .
+    image: omokai-robotic-stack:latest
+    network_mode: host
+    ipc: host
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    stdin_open: true
+    tty: true
+    volumes:
+      - .:/app
+    command: bash
