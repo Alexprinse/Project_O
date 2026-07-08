@@ -348,3 +348,71 @@ velocity_smoother:
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]
     velocity_timeout: 1.0
+
+slam_toolbox:
+  ros__parameters:
+    use_sim_time: True
+    odom_frame: odom
+    map_frame: map
+    map_name: map
+    base_frame: base_footprint
+    scan_topic: scan
+    use_map_saver: true
+    mode: mapping
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI
+    ceres_trust_strategy: LEVENBERG_MARQUARDT
+    ceres_dogleg_type: TRADITIONAL_DOGLEG
+    ceres_loss_function: None
+
+tb3_0/slam_toolbox:
+  ros__parameters:
+    use_sim_time: True
+    odom_frame: odom
+    map_frame: map
+    map_name: map
+    base_frame: base_footprint
+    scan_topic: scan
+    use_map_saver: true
+    mode: mapping
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI
+    ceres_trust_strategy: LEVENBERG_MARQUARDT
+    ceres_dogleg_type: TRADITIONAL_DOGLEG
+    ceres_loss_function: None
+
+tb3_1/slam_toolbox:
+  ros__parameters:
+    use_sim_time: True
+    odom_frame: odom
+    map_frame: map
+    map_name: map
+    base_frame: base_footprint
+    scan_topic: scan
+    use_map_saver: true
+    mode: mapping
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI
+    ceres_trust_strategy: LEVENBERG_MARQUARDT
+    ceres_dogleg_type: TRADITIONAL_DOGLEG
+    ceres_loss_function: None
+
+tb3_2/slam_toolbox:
+  ros__parameters:
+    use_sim_time: True
+    odom_frame: odom
+    map_frame: map
+    map_name: map
+    base_frame: base_footprint
+    scan_topic: scan
+    use_map_saver: true
+    mode: mapping
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI
+    ceres_trust_strategy: LEVENBERG_MARQUARDT
+    ceres_dogleg_type: TRADITIONAL_DOGLEG
+    ceres_loss_function: None

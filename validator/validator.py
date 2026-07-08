@@ -50,6 +50,15 @@ class MissionValidator:
         if plan.mission_type == "follow":
             if not plan.target_object:
                 raise ValueError("Safety constraint violated: Mission type is 'follow' but no target_object is specified.")
+        elif plan.mission_type == "split_patrol" and plan.agent_routes:
+            # Explicit split patrol routes are defined per-agent, verify each route exists
+            allowed_routes = self.waypoints.get("routes", {}).keys()
+            for r in plan.agent_routes:
+                if r.route not in allowed_routes:
+                    raise ValueError(f"Safety constraint violated: Route '{r.route}' for agent '{r.agent_id}' is not a known route. Known routes: {list(allowed_routes)}")
+        elif plan.mission_type in ("regroup", "regroup_home") and not plan.route and not plan.waypoints:
+            # Regrouping to base station does not require a predefined route or waypoints
+            pass
         else:
             if not plan.route and not plan.waypoints:
                 raise ValueError("Safety constraint violated: Mission requires either a predefined 'route' or custom 'waypoints'.")

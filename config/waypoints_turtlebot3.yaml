@@ -9,6 +9,7 @@ routes:
     - { name: "bottom_junction", x: -3.67, y: 9.20, theta: 1.54 }
     - { name: "bottom_middle", x: -3.62, y: -0.06, theta: 1.53 }
     - { name: "bottom_left", x: 0.11, y: -0.11, theta: 0.00 }
+    - { name: "bottom_right", x: 0.11, y: -9.45, theta: 1.55}
 
   delivery:
     - { name: "bottom_middle", x: -3.62, y: -0.06, theta: 1.53 }
@@ -26,6 +27,8 @@ routes:
     - { name: "bottom_junction", x: -3.67, y: 9.20, theta: 1.54 }
     - { name: "bottom_middle", x: -3.62, y: -0.06, theta: 1.53 }
     - { name: "bottom_left", x: 0.11, y: -0.11, theta: 0.00 }
+    - { name: "bottom_right", x: 0.11, y: -9.45, theta: 1.55}
+
 
 home:
   x: -2.0

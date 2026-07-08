@@ -1,79 +1,116 @@
 import time
 import math
 import logging
+import threading
 from typing import Optional, Any
 from .base import BaseRobotController
 
 logger = logging.getLogger(__name__)
+_spin_lock = threading.Lock()
 
 class ROS2Nav2Controller(BaseRobotController):
     """
     ROS 2 Controller using Nav2's BasicNavigator to command a robot (e.g., TurtleBot3) in Gazebo.
     """
-    def __init__(self):
+    def __init__(self, namespace: str = "", wait_for_nav2: bool = True):
         import rclpy
         from nav2_simple_commander.robot_navigator import BasicNavigator
+        
+        self.namespace = namespace
         
         # Initialize ROS 2 rclpy if not already initialized
         if not rclpy.ok():
             rclpy.init()
             
-        self.navigator = BasicNavigator()
+        self.navigator = BasicNavigator(namespace=self.namespace) if self.namespace else BasicNavigator()
         
-        # Set initial pose (TurtleBot3 world default starting pose is x=-2.0, y=-0.5)
-        from geometry_msgs.msg import PoseStamped
-        initial_pose = PoseStamped()
-        initial_pose.header.frame_id = 'map'
-        initial_pose.header.stamp = self.navigator.get_clock().now().to_msg()
-        initial_pose.pose.position.x = -2.0
-        initial_pose.pose.position.y = -0.5
-        initial_pose.pose.position.z = 0.0
-        initial_pose.pose.orientation.z = 0.0
-        initial_pose.pose.orientation.w = 1.0
-        self.navigator.setInitialPose(initial_pose)
-        
-        # Wait up to 5 seconds for DDS service discovery to find either localizer
-        localizer_service = None
-        logger.info("🔍 Auto-detecting active localization service...")
-        for _ in range(10):
-            services = [s[0] for s in self.navigator.get_service_names_and_types()]
-            if "/slam_toolbox/get_state" in services:
-                localizer_service = "planner_server" # Use planner_server to bypass slam_toolbox lifecycle checks
-                logger.info("ℹ️ Detected SLAM Toolbox. Waiting on planner_server lifecycle activation.")
-                break
-            elif "/amcl/get_state" in services:
-                localizer_service = "amcl"
-                logger.info("ℹ️ Detected AMCL as active localizer.")
-                break
-            time.sleep(0.5)
-
-        if localizer_service is None:
-            logger.warning("⚠️ No active localizer service discovered yet. Defaulting to 'planner_server'.")
-            localizer_service = "planner_server"
-
-        # Wait for Nav2 to be fully active
-        logger.info("⏳ Waiting for Nav2 to become active...")
-        self.navigator.waitUntilNav2Active(localizer=localizer_service)
-        logger.info("✅ Nav2 is active and ready.")
-        
-        # Odometry tracking for intermediate waypoint fallback
+        # Odometry tracking for initial pose detection and intermediate waypoint fallback
         self._current_x = None
         self._current_y = None
+        self._current_theta = None
         
         from nav_msgs.msg import Odometry
         def odom_callback(msg):
             self._current_x = msg.pose.pose.position.x
             self._current_y = msg.pose.pose.position.y
             
+            # Compute yaw from quaternion orientation
+            q = msg.pose.pose.orientation
+            siny_cosp = 2 * (q.w * q.z + q.x * q.y)
+            cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
+            self._current_theta = math.atan2(siny_cosp, cosy_cosp)
+            
+        odom_topic = f"/{self.namespace}/odom" if self.namespace else "/odom"
         self._odom_sub = self.navigator.create_subscription(
             Odometry, 
-            '/odom', 
+            odom_topic, 
             odom_callback, 
             10
         )
+        
+        # Wait up to 5 seconds for the first odometry message to auto-detect starting pose
+        logger.info(f"⏳ [{self.namespace if self.namespace else 'root'}] Auto-detecting spawn coordinates from odometry...")
+        for _ in range(50):
+            if self._current_x is not None:
+                break
+            with _spin_lock:
+                rclpy.spin_once(self.navigator, timeout_sec=0.1)
+                
+        if self._current_x is not None:
+            x_init = self._current_x
+            y_init = self._current_y
+            theta_init = self._current_theta
+            logger.info(f"✨ Auto-detected spawn pose for '{self.namespace}': ({x_init:.2f}, {y_init:.2f}, {theta_init:.2f})")
+        else:
+            # Fallback to defaults if no odometry is received
+            x_init = -2.0
+            y_init = -0.5
+            if self.namespace == "tb3_1":
+                y_init = 0.5
+            elif self.namespace == "tb3_2":
+                y_init = -1.5
+            theta_init = 0.0
+            logger.warning(f"⚠️ Failed to detect spawn pose. Using fallback default: ({x_init}, {y_init})")
+            
+        from geometry_msgs.msg import PoseStamped
+        initial_pose = PoseStamped()
+        initial_pose.header.frame_id = 'map'
+        initial_pose.header.stamp = self.navigator.get_clock().now().to_msg()
+        initial_pose.pose.position.x = x_init
+        initial_pose.pose.position.y = y_init
+        initial_pose.pose.position.z = 0.0
+        initial_pose.pose.orientation.z = math.sin(theta_init / 2.0)
+        initial_pose.pose.orientation.w = math.cos(theta_init / 2.0)
+        self.navigator.setInitialPose(initial_pose)
+        
+        if wait_for_nav2:
+            # Wait up to 5 seconds for DDS service discovery to find either localizer
+            localizer_service = None
+            logger.info("🔍 Auto-detecting active localization service...")
+            for _ in range(10):
+                services = [s[0] for s in self.navigator.get_service_names_and_types()]
+                if any("slam_toolbox" in s for s in services):
+                    localizer_service = "planner_server" # Use planner_server to bypass slam_toolbox lifecycle checks
+                    logger.info("ℹ️ Detected SLAM Toolbox. Waiting on planner_server lifecycle activation.")
+                    break
+                elif any(s.endswith("amcl/get_state") for s in services):
+                    localizer_service = "amcl"
+                    logger.info("ℹ️ Detected AMCL as active localizer.")
+                    break
+                time.sleep(0.5)
 
-    def _get_current_pose(self) -> tuple[Optional[float], Optional[float]]:
-        return self._current_x, self._current_y
+            if localizer_service is None:
+                logger.warning("⚠️ No active localizer service discovered yet. Defaulting to 'planner_server'.")
+                localizer_service = "planner_server"
+
+            # Wait for Nav2 to be fully active
+            logger.info("⏳ Waiting for Nav2 to become active...")
+            with _spin_lock:
+                self.navigator.waitUntilNav2Active(localizer=localizer_service)
+            logger.info("✅ Nav2 is active and ready.")
+
+    def _get_current_pose(self) -> tuple[Optional[float], Optional[float], Optional[float]]:
+        return self._current_x, self._current_y, self._current_theta
 
     def navigate_to(self, target_name: str, x: float, y: float, theta: float, speed: float, depth: int = 0) -> bool:
         from geometry_msgs.msg import PoseStamped
@@ -102,18 +139,25 @@ class ROS2Nav2Controller(BaseRobotController):
         # Note: Actual motor speed is handled by Nav2's costmaps and local trajectory planner.
         logger.info(f"   [ROS2Nav2] AI requested speed: {speed} m/s.")
 
-        self.navigator.goToPose(goal_pose)
+        with _spin_lock:
+            self.navigator.goToPose(goal_pose)
         
         i = 0
-        while not self.navigator.isTaskComplete():
+        while True:
+            with _spin_lock:
+                is_complete = self.navigator.isTaskComplete()
+            if is_complete:
+                break
             i += 1
-            feedback = self.navigator.getFeedback()
+            with _spin_lock:
+                feedback = self.navigator.getFeedback()
             # Print feedback every few iterations so we don't spam the console
             if feedback and i % 5 == 0:
                 logger.info(f"   [ROS2Nav2] Distance remaining: {feedback.distance_remaining:.2f} meters")
             time.sleep(0.5)
             
-        result = self.navigator.getResult()
+        with _spin_lock:
+            result = self.navigator.getResult()
         if result == TaskResult.SUCCEEDED:
             if depth == 0:
                 logger.info(f"✅ [ROS2Nav2] Successfully arrived at '{target_name}'.")
@@ -127,7 +171,7 @@ class ROS2Nav2Controller(BaseRobotController):
             logger.warning(f"⚠️ [ROS2Nav2] Failed to reach '{target_name}'. Checking intermediate waypoints...")
             
             # Fetch current pose
-            curr_x, curr_y = self._get_current_pose()
+            curr_x, curr_y, _ = self._get_current_pose()
             if curr_x is None:
                 logger.error("❌ Could not determine current pose. Aborting.")
                 return False
@@ -162,13 +206,15 @@ class ROS2Nav2Controller(BaseRobotController):
         
     def stop(self) -> None:
         logger.warning("🛑 [ROS2Nav2] Emergency Stop triggered! Canceling Nav2 goals.")
-        self.navigator.cancelTask()
+        with _spin_lock:
+            self.navigator.cancelTask()
         
         # Publish empty twist to ensure robot stops moving
         try:
             from geometry_msgs.msg import Twist
             if not hasattr(self, "cmd_pub"):
-                self.cmd_pub = self.navigator.create_publisher(Twist, '/cmd_vel', 10)
+                cmd_vel_topic = f"/{self.namespace}/cmd_vel" if self.namespace else "/cmd_vel"
+                self.cmd_pub = self.navigator.create_publisher(Twist, cmd_vel_topic, 10)
             self.cmd_pub.publish(Twist())
         except Exception:
             pass
@@ -182,20 +228,24 @@ class ROS2Nav2Controller(BaseRobotController):
         from ultralytics import YOLO
         
         # Ensure any active Nav2 tasks are cancelled
-        self.navigator.cancelTask()
+        with _spin_lock:
+            self.navigator.cancelTask()
         
         # Create publisher if not exists
         if not hasattr(self, "cmd_pub"):
-            self.cmd_pub = self.navigator.create_publisher(Twist, '/cmd_vel', 10)
+            cmd_vel_topic = f"/{self.namespace}/cmd_vel" if self.namespace else "/cmd_vel"
+            self.cmd_pub = self.navigator.create_publisher(Twist, cmd_vel_topic, 10)
         if not hasattr(self, "image_pub"):
-            self.image_pub = self.navigator.create_publisher(Image, '/camera/image_annotated', 10)
+            image_annotated_topic = f"/{self.namespace}/camera/image_annotated" if self.namespace else "/camera/image_annotated"
+            self.image_pub = self.navigator.create_publisher(Image, image_annotated_topic, 10)
             
         # Shared image state
         self._latest_image = None
         def img_callback(msg):
             self._latest_image = msg
             
-        sub = self.navigator.create_subscription(Image, '/camera/image_raw', img_callback, 10)
+        image_raw_topic = f"/{self.namespace}/camera/image_raw" if self.namespace else "/camera/image_raw"
+        sub = self.navigator.create_subscription(Image, image_raw_topic, img_callback, 10)
         
         logger.info(f"👁️ Starting visual follow node for target '{target_name}' using YOLOv8...")
         
@@ -221,7 +271,8 @@ class ROS2Nav2Controller(BaseRobotController):
         try:
             while rclpy.ok():
                 # Spin once to trigger subscription
-                rclpy.spin_once(self.navigator, timeout_sec=0.05)
+                with _spin_lock:
+                    rclpy.spin_once(self.navigator, timeout_sec=0.05)
                 
                 if time.time() - start_time > timeout:
                     logger.warning("⏱️ Target follow timed out!")
@@ -369,6 +420,6 @@ class ROS2Nav2Controller(BaseRobotController):
 
         
     def __del__(self):
-        import rclpy
-        if rclpy.ok():
-            rclpy.shutdown()
+        # Do not call rclpy.shutdown() here, as it shuts down the ROS 2 context globally
+        # for all other active nodes/controllers in the same process.
+        pass

@@ -20,13 +20,21 @@ class Waypoint(BaseModel):
         description="Target orientation yaw angle (radians)"
     )
 
+class AgentRoute(BaseModel):
+    """
+    Represents an explicit route assignment for a single robot agent.
+    """
+    agent_id: str = Field(description="The namespaced ID of the robot, e.g., 'tb3_0', 'tb3_1'")
+    route: str = Field(description="The pre-configured route name for this agent, e.g., 'top_side'")
+    loops: int = Field(default=1, description="Number of times to loop this route")
+
 class MissionPlan(BaseModel):
     """
     Pydantic schema defining the structured JSON expected from the LLM.
     This guarantees type safety and correct data extraction.
     """
     mission_type: str = Field(
-        description="The type of mission, e.g., 'patrol', 'inspect', 'deliver', 'navigate', 'follow'"
+        description="The type of mission, e.g., 'patrol', 'inspect', 'deliver', 'navigate', 'follow', 'split_patrol', 'formation'"
     )
     route: Optional[str] = Field(
         default=None,
@@ -51,5 +59,21 @@ class MissionPlan(BaseModel):
     target_object: Optional[str] = Field(
         default=None,
         description="The target object or color to search for and follow, e.g., 'red', 'green', 'person', 'chair'"
+    )
+    formation_type: Optional[str] = Field(
+        default=None,
+        description="The multi-agent formation type, e.g., 'wedge', 'line', 'column'"
+    )
+    spacing: float = Field(
+        default=1.0,
+        description="The distance spacing between agents in the formation (meters)"
+    )
+    agents: Optional[List[str]] = Field(
+        default=None,
+        description="List of robot agent namespaced IDs involved in the mission, e.g., ['tb3_0', 'tb3_1']"
+    )
+    agent_routes: Optional[List[AgentRoute]] = Field(
+        default=None,
+        description="Explicit route assignments for individual agents"
     )
 

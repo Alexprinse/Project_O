@@ -11,11 +11,19 @@ class MockRobotController(BaseRobotController):
     without needing ROS 2 or Gazebo installed.
     It simulates travel time based on distance and speed, and prints telemetry.
     """
-    def __init__(self):
-        # Assume robot starts at origin
-        self.current_x = 0.0
-        self.current_y = 0.0
+    def __init__(self, namespace: str = ""):
+        self.namespace = namespace
+        # Spaced starting positions to simulate multiple robots in mock mode
+        self.current_x = -2.0
+        self.current_y = -0.5
+        if self.namespace == "tb3_1":
+            self.current_y = 0.5
+        elif self.namespace == "tb3_2":
+            self.current_y = 1.5
         self.current_theta = 0.0
+        
+    def _get_current_pose(self) -> tuple[float, float, float]:
+        return self.current_x, self.current_y, self.current_theta
         
     def navigate_to(self, target_name: str, x: float, y: float, theta: float, speed: float) -> bool:
         logger.info(f"🚀 [MockRobot] Navigating to '{target_name}' ({x}, {y}) at {speed} m/s...")

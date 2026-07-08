@@ -43,31 +43,29 @@ def main():
     
     logger.info("🤖 Starting Omokai Robotics Mission Pipeline...")
     
-    # 1. Initialize Components
+    # 1. Initialize Parser and Validator
     try:
         waypoints_file = f"waypoints_{args.robot}.yaml"
         validator = MissionValidator(config_dir="config", waypoints_file=waypoints_file)
         
+        # Extract unique known waypoints with coordinates to pass to parser
+        known_waypoints = {}
+        routes_dict = validator.waypoints.get("routes", {})
+        for route_name, wps in routes_dict.items():
+            for wp in wps:
+                if "name" in wp:
+                    known_waypoints[wp["name"]] = {
+                        "x": wp["x"],
+                        "y": wp["y"],
+                        "theta": wp.get("theta", 0.0)
+                    }
+        
         # If settings say use_mock is true, override the CLI flag
         use_mock = args.mock_llm or validator.settings.get("llm", {}).get("use_mock", False)
         routes = list(validator.waypoints.get("routes", {}).keys())
-        llm_parser = MissionParser(use_mock=use_mock, allowed_routes=routes)
-        
-        if args.ros:
-            if args.robot == "ebot":
-                logger.info("🔌 Loading ebot Direct Controller...")
-                from robot.ebot_controller import EbotRobotController
-                robot = EbotRobotController()
-            else:
-                logger.info("🔌 Loading ROS 2 Nav2 Controller...")
-                from robot.ros2_controller import ROS2Nav2Controller
-                robot = ROS2Nav2Controller()
-        else:
-            robot = MockRobotController()
-            
-        executor = MissionExecutor(robot=robot, waypoints_config=validator.waypoints)
+        llm_parser = MissionParser(use_mock=use_mock, allowed_routes=routes, known_waypoints=known_waypoints)
     except Exception as e:
-        logger.error(f"Failed to initialize system: {e}")
+        logger.error(f"Failed to initialize system validation: {e}")
         sys.exit(1)
 
     # 2. Parse Prompt (Prompt -> Raw JSON dict)
@@ -86,6 +84,28 @@ def main():
         logger.info("✅ Validation successful!")
     except Exception as e:
         logger.error(f"❌ Validation Error: {e}")
+        sys.exit(1)
+
+    # 4. Initialize Robot Controller
+    try:
+        squad_missions = ["formation", "split_patrol", "regroup"]
+        is_squad = validated_plan.mission_type in squad_missions or validated_plan.agents is not None or validated_plan.agent_routes is not None
+
+        if args.ros:
+            if args.robot == "ebot":
+                logger.info("🔌 Loading ebot Direct Controller...")
+                from robot.ebot_controller import EbotRobotController
+                robot = EbotRobotController()
+            else:
+                logger.info("🔌 Loading ROS 2 Nav2 Controller...")
+                from robot.ros2_controller import ROS2Nav2Controller
+                robot = ROS2Nav2Controller(wait_for_nav2=not is_squad)
+        else:
+            robot = MockRobotController()
+            
+        executor = MissionExecutor(robot=robot, waypoints_config=validator.waypoints)
+    except Exception as e:
+        logger.error(f"Failed to initialize robot controller: {e}")
         sys.exit(1)
         
     # 4. Execute Mission (Validated MissionPlan -> Physical Commands)

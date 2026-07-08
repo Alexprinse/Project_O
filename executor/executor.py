@@ -23,6 +23,37 @@ class MissionExecutor:
         logger.info(f"Speed: {plan.speed} m/s")
         logger.info("=" * 50)
         
+        # Intercept squad/multi-agent missions
+        squad_missions = ["formation", "split_patrol", "regroup"]
+        is_squad = plan.mission_type in squad_missions or plan.agents is not None or plan.agent_routes is not None
+        
+        if is_squad:
+            logger.info("👥 Detected multi-agent / squad mission. Delegating to SquadCommander...")
+            
+            # Determine ROS mode based on class type
+            try:
+                from robot.ros2_controller import ROS2Nav2Controller
+                use_ros = isinstance(self.robot, ROS2Nav2Controller)
+            except ImportError:
+                use_ros = False
+                
+            # Determine agent list (extract from agent_routes if not explicitly given)
+            agent_ids = plan.agents
+            if not agent_ids and plan.agent_routes:
+                agent_ids = list(dict.fromkeys(r.agent_id for r in plan.agent_routes))
+                
+            from robot.formation.squad_commander import SquadCommander
+            commander = SquadCommander(use_ros=use_ros, agent_ids=agent_ids)
+            
+            success = commander.execute_squad_mission(plan, self.waypoints)
+            if not success:
+                logger.error("❌ Squad mission failed.")
+                commander.manager.stop_all()
+            logger.info("=" * 50)
+            logger.info(f"🏁 SQUAD MISSION COMPLETE")
+            logger.info("=" * 50)
+            return
+
         # 1. Waypoint Navigation
         route_waypoints = []
         if plan.route:
