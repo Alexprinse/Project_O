@@ -148,20 +148,28 @@ export GEMINI_API_KEY="your_gemini_api_key_here"
     ```bash
     python3 main.py --prompt "patrol the delivery line for once at maximum speed of 2.5m/s" --ros --robot turtlebot3
     ```
-*   **TurtleBot3 Corridor Patrol (Top & Bottom):**
+*   **Challenge 2: SLAM Coordinate Navigation & Stuck Recovery:**
     ```bash
-    python3 main.py --prompt "patrol top_side for once" --ros --robot turtlebot3
+    # Command the robot to navigate in SLAM mode. If it hits planning failures, 
+    # it recursively plans via intermediate poses (2.0m steps) to recover.
+    python3 main.py --prompt "go to coordinates x=1.83, y=9.72 and dont return home" --ros --robot turtlebot3
     ```
-*   **Challenge 2: TurtleBot3 SLAM Coordinate Navigation:**
+*   **Challenge 3: Vision AI Target Detection & Follow (YOLOv8 & HSV):**
+    First, spawn a target object in the corridor using our helper script:
     ```bash
-    # Command the robot to navigate to arbitrary coordinates x=1.5, y=-2.0
-    python3 main.py --prompt "go to coordinates x=1.5, y=-2.0" --ros --robot turtlebot3
+    # Spawn a standing person at x=1.8, y=7.0 (locally cached, loads instantly offline)
+    python3 scripts/swap_object.py --object person --x 1.8 --y 7.0
     ```
-*   **Challenge 3: TurtleBot3 Vision AI Target Detection & Follow:**
+    Then run the tracking command:
     ```bash
-    # Command the robot to locate and follow a user-defined target (e.g., 'red')
-    python3 main.py --prompt "find the red target and follow it" --ros --robot turtlebot3
+    python3 main.py --prompt "find a person and follow it" --ros --robot turtlebot3
     ```
+*   **Combined Sequential Navigate & Follow:**
+    You can command the robot to drive to a location first, and then automatically start tracking:
+    ```bash
+    python3 main.py --prompt "go to x=1.8 and y=9.0 and find a person and follow" --ros --robot turtlebot3
+    ```
+    *(Open RViz, click "Add -> Image", and subscribe to `/camera/image_annotated` to view the live camera feed with green bounding boxes!).*
 
 ---
 
@@ -223,9 +231,10 @@ This repository implements two of the three senior-level challenges:
 
 ### 2. Challenge 3: Vision AI Target Detection & Follow
 * **Dual Vision Modalities**: 
-  1. **HSV Color Segmentation**: Highly robust and fast tracking for distinctively colored objects (e.g. `"red"`, `"green"`, `"blue"`, `"yellow"`) in simulated worlds.
-  2. **MobileNet-SSD DNN**: Uses a lightweight 20-class object detection neural network running on CPU via OpenCV's DNN module, supporting targets like `"person"`, `"bottle"`, `"chair"`.
-* **Dynamic Follow Control Loop**: Subscribes to `/camera/image_raw`, processes the frames, and runs target detection. It adjusts the robot's angular velocity to keep the target centered in the frame, and adjusts linear velocity to drive towards it, stopping automatically when it gets close.
+  1. **HSV Color Segmentation**: Highly robust and fast tracking for distinctively colored objects (e.g., `"red"`, `"green"`, `"blue"`, `"yellow"`) in simulated worlds.
+  2. **YOLOv8 deep learning network**: Integrates `ultralytics` YOLOv8 nano model (fully cached locally) to detect and follow complex target objects (like `person`, `car`, `bus`, `bottle`, etc.).
+* **Dynamic Follow Control Loop**: Subscribes to `/camera/image_raw`, processes the frames, and runs target detection. It adjusts the robot's angular velocity using smooth proportional steering control (`max 0.4 rad/s`) to keep the target centered in the frame, and adjusts linear velocity to drive towards it, stopping automatically when it gets close.
+* **Live Annotated RViz Feed**: Publishes annotated frames with green bounding boxes and labels directly to ROS 2 on the topic `/camera/image_annotated` for real-time visualization in RViz.
 * **Operator Alerts**: Captures a snapshot of the camera frame with bounding boxes and labels when the target is first acquired and saves it to `detection.jpg` in the project root to send back to the human operator.
 * **Fully Portable**: Converts the raw ROS Image bytes to OpenCV BGR matrices manually inside the script. This eliminates the dependency on the `cv_bridge` package, making the image processor work flawlessly inside custom python virtual environments on any host machine or container.
 

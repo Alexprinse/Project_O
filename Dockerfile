@@ -12,6 +12,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     python3-pip \
     git \
+    curl \
+    ca-certificates \
     gazebo11 \
     ros-humble-gazebo-ros-pkgs \
     ros-humble-turtlebot3-simulations \
@@ -34,6 +36,12 @@ RUN git clone https://github.com/aws-robotics/aws-robomaker-small-warehouse-worl
 RUN cp -r /opt/ros/humble/share/turtlebot3_description /root/.gazebo/models/ && \
     cp -r /opt/ros/humble/share/turtlebot3_gazebo/models/turtlebot3_waffle_pi /root/.gazebo/models/ && \
     cp -r /opt/ros/humble/share/turtlebot3_gazebo/models/turtlebot3_common /root/.gazebo/models/
+
+# 4.5. Cache standard target models locally for offline vision AI tasks
+RUN for model in person_standing beer suv bus car_wheel mailbox stop_light; do \
+      mkdir -p /root/.gazebo/models/$model && \
+      curl -sSL http://models.gazebosim.org/$model/model.tar.gz | tar -xz -C /root/.gazebo/models/; \
+    done
 
 # 5. Copy python requirements and install them
 COPY requirements.txt .
