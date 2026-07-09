@@ -310,6 +310,17 @@ An end-to-end visual servoing controller integrates YOLOv8 nano deep learning in
 
 ---
 
+## 🚜 Legacy Platform Support (e-Yantra Cobot)
+
+This pipeline was initially developed and tested using the **e-Yantra Krishi Cobot (ebot)**. 
+
+> [!WARNING]
+> **Compatibility Notice:** The ebot integration is only designed for the **Core Task** (single robot waypoint navigation). The ebot relies on Ignition Gazebo and direct odometry/LiDAR scripts, which are **not compatible** with the TurtleBot3 Gazebo Classic/Nav2 ecosystem. The two robots cannot coexist or be simulated simultaneously. 
+
+For instructions on installing the ebot workspace and running its specific simulation, please see the **[e-Yantra Setup Guide (docs/ebot.md)](docs/ebot.md)**.
+
+---
+
 ## 📈 Real-World Scaling Story
 
 To adapt this local mock and simulation architecture to a real-world, high-reliability deployment, we would implement:
